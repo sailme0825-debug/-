@@ -53,6 +53,19 @@ const wan = n => { n = Number(n) || 0; return n >= 10000 ? `${(n / 10000).toFixe
 // B站 create 是 "YYYY-MM-DD HH:mm" 字符串，取日期部分展示
 const fmtDate = s => (s || '').split(' ')[0] || ''
 
+// 按视频标题关键词把 B站美妆视频分流到更细的前端分类（命中靠前者优先，默认彩妆趋势）
+const ROUTES = [
+  { id: 'medical',   kw: ['医美', '水光', '玻尿酸', '热玛吉', '光子', '抗衰', '童颜针', '超声炮', '项目'] },
+  { id: 'technique', kw: ['教程', '技巧', '画法', '教学', '手把手', '怎么画', '怎么化', '新手', '如何', '步骤', '上妆'] },
+  { id: 'skincare',  kw: ['护肤', '精华', '面膜', '水乳', '防晒', '抗老', '保湿', '痘', '油皮', '干皮', '敏感肌', '卸妆', '面霜', '爽肤'] },
+  { id: 'tools',     kw: ['化妆刷', '美妆蛋', '粉扑', '刷具', '卷发棒', '美容仪', '工具', '夹睫毛'] },
+  { id: 'color',     kw: ['显白', '冷白皮', '黄黑皮', '色系', '配色', '春夏', '秋冬', '氛围色'] },
+]
+function routeCategory(title = '') {
+  for (const r of ROUTES) if (r.kw.some(k => title.includes(k))) return r.id
+  return 'makeup' // 默认归入「彩妆趋势」
+}
+
 // ── 微博热搜 → TrendItem[]（限速时回退上次缓存）──
 async function weiboTrends() {
   if (Date.now() - cache.weibo.at < MIN_INTERVAL) return cache.weibo.data
@@ -107,20 +120,24 @@ export default {
 
   async fetchTrends() {
     const [weibo, bili] = await Promise.all([weiboTrends(), biliVideos()])
-    // B站「美妆护肤」分区热门视频 → 「彩妆趋势」分类（保持垂直）
-    const biliTrends = bili
+    // B站「美妆护肤」分区热门视频 → 按标题关键词分流到 妆容技巧/护肤新品/医美/工具/彩妆趋势
+    const ranked = bili
       .filter(v => v.zone === '美妆护肤')
       .sort((a, b) => (b.play || 0) - (a.play || 0))
-      .slice(0, 8)
-      .map((v, i) => ({
-        categoryId: 'makeup',
+    const perCat = {} // 每个分类内部计名次，用于热度递减
+    const biliTrends = ranked.map(v => {
+      const categoryId = routeCategory(v.title)
+      const rank = (perCat[categoryId] = (perCat[categoryId] || 0) + 1)
+      return {
+        categoryId,
         title: v.title,
-        heat: Math.max(55, 96 - i),
+        heat: Math.max(55, 96 - rank * 2),
         desc: `B站 @${v.author} · ${wan(v.play)}播放`,
         tags: ['#B站美妆', `#${v.author}`],
         posts: `${wan(v.play)} 播放`,
         source: 'crawler', fetchedAt: new Date().toISOString(),
-      }))
+      }
+    })
     return [...weibo, ...biliTrends]
   },
 
