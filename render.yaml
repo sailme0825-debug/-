@@ -13,10 +13,10 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22.12.0
-      # 数据源：默认 mock（离线示例，开箱即用）。
-      # 接真实数据时改为 newrank 等，并在 Render 控制台补上对应密钥。
+      # 数据源：mock 兜底 + crawler（微博热搜公开榜，免费真实数据）。
+      # 接付费源时再加 newrank 等，并在 Render 控制台补上对应密钥。
       - key: PROVIDERS
-        value: mock
+        value: mock,crawler
       # 每日刷新计划（应用内已锁定 Asia/Shanghai 时区，直接按北京时间写）
       - key: REFRESH_CRON
         value: 0 10 * * *
