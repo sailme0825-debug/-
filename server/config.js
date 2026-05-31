@@ -16,6 +16,12 @@ export const config = {
   // 默认仅 mock，开箱即用、无需任何密钥
   providers: (process.env.PROVIDERS || 'mock').split(',').map(s => s.trim()),
 
+  // ── 爬虫（路径C：抓公开数据，目前=微博热搜公开榜）──
+  // 默认开启；列入 PROVIDERS 即生效。设 CRAWLER_ENABLED=false 可单独关掉
+  crawler: {
+    enabled: (process.env.CRAWLER_ENABLED || 'true') !== 'false',
+  },
+
   // ── 第三方数据服务密钥（路径B：追踪博主的现实方案）──
   newrank: {
     apiKey: process.env.NEWRANK_API_KEY || '',

@@ -3,8 +3,9 @@ import { config } from '../config.js'
 import mock from './mock.js'
 import newrank from './newrank.js'
 import weibo from './weibo.js'
+import crawler from './crawler.js'
 
-const REGISTRY = { mock, newrank, weibo }
+const REGISTRY = { mock, newrank, weibo, crawler }
 
 export function getActiveProviders() {
   const active = config.providers
