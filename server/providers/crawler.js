@@ -71,21 +71,28 @@ async function weiboTrends() {
   if (Date.now() - cache.weibo.at < MIN_INTERVAL) return cache.weibo.data
   try {
     const json = await getJSON(WEIBO_URL, 'https://weibo.com/')
-    const list = (json?.data?.realtime || [])
+    const realtime = json?.data?.realtime || []
+    const mk = (r, i, categoryId, desc) => {
+      const topic = (r.word_scheme || '').replace(/^#|#$/g, '').trim()
+      const title = (r.word || '').trim()
+      return {
+        categoryId, title,
+        heat: Math.max(55, 99 - i),
+        desc,
+        tags: [topic && topic !== title ? `#${topic}` : '#微博热搜', r.label_name && `#${r.label_name}`].filter(Boolean),
+        posts: r.num ? `${Number(r.num).toLocaleString('zh-CN')} 讨论` : '',
+        source: 'crawler', fetchedAt: new Date().toISOString(),
+      }
+    }
+    // ① 美妆相关 → 「美妆热点」
+    const hot = realtime
       .filter(r => BEAUTY.some(k => (r.word || '').includes(k)))
-      .map((r, i) => {
-        const topic = (r.word_scheme || '').replace(/^#|#$/g, '').trim()
-        const title = (r.word || '').trim()
-        return {
-          categoryId: 'hot',
-          title,
-          heat: Math.max(55, 99 - i),
-          desc: '来自微博实时热搜榜（公开数据）',
-          tags: [topic && topic !== title ? `#${topic}` : '#微博热搜', r.label_name && `#${r.label_name}`].filter(Boolean),
-          posts: r.num ? `${Number(r.num).toLocaleString('zh-CN')} 讨论` : '',
-          source: 'crawler', fetchedAt: new Date().toISOString(),
-        }
-      })
+      .map((r, i) => mk(r, i, 'hot', '来自微博实时热搜榜（公开数据）'))
+    // ② 整榜 TOP 全民热议话题 → 「抖音年轻人热议」（vlog 选题素材）
+    const buzz = realtime
+      .slice(0, 12)
+      .map((r, i) => mk(r, i, 'douyin', '微博热搜榜·全民热议话题'))
+    const list = [...hot, ...buzz]
     cache.weibo = { at: Date.now(), data: list }
     return list
   } catch (e) {
