@@ -1,0 +1,25 @@
+# Render Blueprint —— 在 Render 新建 Blueprint 时会自动读取本文件
+# 一个常驻 Node Web 服务：构建前端 + 启动 Express 单服务（前后端同源）
+services:
+  - type: web
+    name: beauty-trends
+    runtime: node
+    plan: free                       # 免费套餐；闲置会休眠，首次访问唤醒约 30 秒
+    region: singapore                # 离中国近，可按需改 oregon / frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeploy: true                 # push 到主分支自动重新部署
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.12.0
+      # 数据源：默认 mock（离线示例，开箱即用）。
+      # 接真实数据时改为 newrank 等，并在 Render 控制台补上对应密钥。
+      - key: PROVIDERS
+        value: mock
+      # 每日刷新计划（应用内已锁定 Asia/Shanghai 时区，直接按北京时间写）
+      - key: REFRESH_CRON
+        value: 0 10 * * *
+      # 真实数据源密钥占位（需要时在 Render 控制台填值，勿提交到代码库）
+      # - key: NEWRANK_API_KEY
+      #   sync: false
