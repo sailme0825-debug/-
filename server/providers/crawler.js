@@ -28,6 +28,17 @@ const BEAUTY = [
   '面膜', '精华', '妆容', '香水', '美甲', '医美', '素颜', '卸妆', '防晒',
 ]
 
+// 品牌名（精选，去掉 TF/后 等易误判短词）→ 「品牌动向」
+const BRANDS = [
+  '雅诗兰黛', '兰蔻', '欧莱雅', '迪奥', '香奈儿', '完美日记', '花西子', '珀莱雅',
+  '资生堂', '雅漾', 'SK-II', 'SKII', '纪梵希', '圣罗兰', 'YSL', '阿玛尼', '植村秀',
+  '海蓝之谜', '赫莲娜', '娇兰', '汤姆福特', '3CE', '橘朵', '彩棠', '毛戈平', '薇诺娜',
+  '科颜氏', '倩碧', '雪花秀', '卡姿兰', '花知晓', '谷雨', '可复美', '理肤泉', '修丽可',
+  '自然堂', '百雀羚', '韩束', '丸美', '美宝莲', '巨子生物', '林清轩', '上美',
+]
+// 明星妆容信号词 → 「明星妆容」（best-effort，会有噪音）
+const CELEB = ['妆容', '红毯妆', '红毯造型', '同款妆', '断眉', '伪素颜', '妆造', '生图妆', '机场造型', '封面造型', '盛典造型']
+
 // 每个源独立限速 + 缓存上次成功结果，避免频繁刷新时数据闪烁
 const cache = {
   weibo: { at: 0, data: [] },
@@ -92,7 +103,15 @@ async function weiboTrends() {
     const buzz = realtime
       .slice(0, 12)
       .map((r, i) => mk(r, i, 'douyin', '微博热搜榜·全民热议话题'))
-    const list = [...hot, ...buzz]
+    // ③ 品牌名命中 → 「品牌动向」（免费源稀疏，时有时无）
+    const brand = realtime
+      .filter(r => BRANDS.some(b => (r.word || '').includes(b)))
+      .map((r, i) => mk(r, i, 'brand', '微博热搜·美妆品牌相关'))
+    // ④ 明星妆容信号 → 「明星妆容」（best-effort，可能有噪音）
+    const celeb = realtime
+      .filter(r => CELEB.some(c => (r.word || '').includes(c)))
+      .map((r, i) => mk(r, i, 'celebrity', '微博热搜·明星妆容相关'))
+    const list = [...hot, ...buzz, ...brand, ...celeb]
     cache.weibo = { at: Date.now(), data: list }
     return list
   } catch (e) {
@@ -145,7 +164,20 @@ export default {
         source: 'crawler', fetchedAt: new Date().toISOString(),
       }
     })
-    return [...weibo, ...biliTrends]
+    // B站测评类视频里提到品牌名的 → 也补进「品牌动向」，让该分类稳定有料
+    const biliBrand = ranked
+      .filter(v => BRANDS.some(b => v.title.includes(b)))
+      .slice(0, 6)
+      .map((v, i) => ({
+        categoryId: 'brand',
+        title: v.title,
+        heat: Math.max(55, 92 - i * 3),
+        desc: `B站 @${v.author} · ${wan(v.play)}播放`,
+        tags: ['#品牌相关', `#${v.author}`],
+        posts: `${wan(v.play)} 播放`,
+        source: 'crawler', fetchedAt: new Date().toISOString(),
+      }))
+    return [...weibo, ...biliTrends, ...biliBrand]
   },
 
   // B站排行榜 → 真实「博主动态」
